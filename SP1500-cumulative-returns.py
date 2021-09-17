@@ -19,34 +19,26 @@ def groupby_weight(form4_csv):
             'sharesOwnedFollowingTransaction'].idxmax()]
     # sum the 'transactionShares' and 'Weight' columns during the groupby operation
     form4_csv_weight = \
-    form4_csv.groupby(['transactionDate', 'rptOwnerName', 'rptOwnerCik', 'documentType', 'issuerCik', 'issuerName',
-                       'issuerTradingSymbol', 'transactionCode', 'securityTitle'], as_index=False)[
-        'transactionShares', 'Weight'].sum()
-
+        form4_csv.groupby(['transactionDate', 'rptOwnerName', 'rptOwnerCik', 'documentType', 'issuerCik', 'issuerName',
+                           'issuerTradingSymbol', 'transactionCode', 'securityTitle'], as_index=False)[
+            'transactionShares', 'Weight'].sum()
     # drop all columns from form4_csv_shares_following except for 'sharesOwnedFollowingTransaction' then reset index
     form4_csv_shares_following = form4_csv_shares_following[['sharesOwnedFollowingTransaction']].reset_index(drop=True)
-    # reset index of form4_csv_weight
     form4_csv_weight = form4_csv_weight.reset_index(drop=True)
-
     # now join the two dataframes on the indexes. This will append the 'sharesOwnedFollowingTransaction' column
     form4_csv = pd.merge(form4_csv_weight, form4_csv_shares_following, left_index=True, right_index=True).reset_index()
-
     # subtract the the 'totalSharesPurchased' column from the 'sharesOwnedFollowingTransaction' to get the amount of
     # shares owned by insider prior to making any purchases.
     form4_csv['sharesOwnedPriorToPurchases'] = form4_csv['sharesOwnedFollowingTransaction'] - form4_csv[
         'transactionShares']
-
     # calculate the percentage increase of shares for insider
     form4_csv['percentageIncreaseShares'] = (form4_csv['sharesOwnedFollowingTransaction'] - form4_csv[
         'sharesOwnedPriorToPurchases']) / form4_csv['sharesOwnedPriorToPurchases']
-
     # Divide the 'Weight' column by the 'transactionShares' to calculate the weighted average
     form4_csv['Weighted Average'] = form4_csv['Weight'] / form4_csv['transactionShares']
     # create total purchase dollar amount column
-
     form4_csv['Total Purchase'] = form4_csv['Weighted Average'] * form4_csv['transactionShares']
     # Delete the 'Weight' column as it is no longer needed
-
     form4_csv = form4_csv.drop(['Weight', 'sharesOwnedPriorToPurchases'], axis=1)
     # to csv
     return form4_csv
@@ -55,7 +47,6 @@ def groupby_weight(form4_csv):
 def date_offset_func(date_of_form4_purchase, ticker):
     # return a dataframe that contains stock info for company with matching CIK and Ticker
     date_offset_stock_df = yahoo_historical_csv[(yahoo_historical_csv['Symbol'] == ticker)]
-    #     display(date_offset_stock_df)
     # convert datettime object to string
     date_of_form4_purchase = date_of_form4_purchase.strftime("%Y-%m-%d")
     # locate row with matching date
@@ -80,11 +71,9 @@ def date_offset_func(date_of_form4_purchase, ticker):
 def returns_func(df):
     df['Stock Daily Return'] = df[['Stock Adj Close']].pct_change()
     daily_returns = df['Stock Daily Return']
-    # calculate mean
+    # calculate mean, standard deviation, cumulative return
     df['Stock Mean Daily Returns'] = daily_returns.expanding().mean()
-    # calculate standard deviation
     df['Stock SD Daily Returns'] = daily_returns.expanding().std()
-    # calculate cumulative return
     df['Stock Cumulative Returns'] = (df['Stock Daily Return'] + 1).cumprod() - 1
     return df
 
@@ -99,7 +88,7 @@ def sp1500_returns_func(sp1500_csv, date_of_form4_purchase):
     try:
         index_number = sp1500_csv_date.index.item()
     except:
-        #         display('!!! FAIL')
+        display('!!! FAIL')
         return
     index_180 = index_number + 783
     # create new df that has stock data from 0-180 days from purchase
@@ -109,11 +98,9 @@ def sp1500_returns_func(sp1500_csv, date_of_form4_purchase):
     # calculate daily returns
     sp1500_csv['SP1500 Daily Return'] = sp1500_csv[['SP1500 Adj Close']].pct_change()
     daily_returns = sp1500_csv['SP1500 Daily Return']
-    # calculate mean
+    # calculate mean, standard deviation, cumulative return
     sp1500_csv['SP1500 Mean Daily Returns'] = daily_returns.expanding().mean()
-    # caculate standard deviation
     sp1500_csv['SP1500 SD Daily Returns'] = daily_returns.expanding().std()
-    # calculate cumulative return
     sp1500_csv['SP1500 Cumulative Returns'] = (sp1500_csv['SP1500 Daily Return'] + 1).cumprod() - 1
     return sp1500_csv
 
@@ -192,7 +179,6 @@ yahoo_historical_csv = yahoo_historical_csv.rename(columns={'Adj Close': 'Stock 
 yahoo_historical_csv['Date'] = pd.to_datetime(yahoo_historical_csv['Date'])
 # convert all ticker symbols to uppercase
 yahoo_historical_csv['Symbol'] = yahoo_historical_csv['Symbol'].str.upper()
-
 # convert 'transactionDate' to datetime object
 form4_csv['transactionDate'] = pd.to_datetime(form4_csv['transactionDate'])
 
@@ -200,7 +186,7 @@ form4_csv['transactionDate'] = pd.to_datetime(form4_csv['transactionDate'])
 #
 ####IMPORTANT 
 #
-# These Numbers may need to be changed to ints depedning on the csv
+# These Numbers may need to be changed to ints depending on the csv
 form4_csv = form4_csv[(form4_csv['isDirector'] == 1) | (form4_csv['isOfficer'] == 1)]
 
 index = form4_csv.index
@@ -216,7 +202,7 @@ form4_csv['issuerTradingSymbol'] = form4_csv['issuerTradingSymbol'].str.upper()
 
 # iterate over rows of csv for each transaction. extract the date, tradingSymbol and CIK
 for index, row in form4_csv.iterrows():
-    # return a dataframe that contains 180 dasys of stock data from tx date that also matches cik & ticker on form 4
+    # return a dataframe that contains 180 days of stock data from tx date that also matches cik & ticker on form 4
     date_offset_stock_df = date_offset_func(row['transactionDate'], row['issuerTradingSymbol'])
     # if there is no stock data for the transaction, go to the next transaction
     if date_offset_stock_df is None:
